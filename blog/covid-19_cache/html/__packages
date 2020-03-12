@@ -1,0 +1,9 @@
+base
+lubridate
+dplyr
+xtable
+knitr
+kableExtra
+Matrix
+lme4
+ggplot2
