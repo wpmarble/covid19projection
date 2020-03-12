@@ -4,7 +4,7 @@
 # I weight recent observations more heavily, with the decay rate chosen to minimize
 # 7-day-ahead forecast error. 
 
-setwd("~/Dropbox/random/covid19/")
+setwd("~/projects/covid19/")
 options(stringsAsFactors = FALSE)
 
 
@@ -33,6 +33,7 @@ dat = dat %>%
   rename(state = Province.State,
          country = Country.Region,
          lat = Lat, long = Long)
+
 
 dat = dat %>% 
   select(country, starts_with("date_")) %>% 
@@ -168,18 +169,18 @@ ggplot(subset(decay_long, delta >=.5)) +
 
 # plot MSE vs. exponential decay weights for holdout data
 delta.opt = decay$delta[which.min(decay$rmse_pct)]
-assert_that(abs(delta.opt - .66) < 1e4, msg = "the delta.opt is hard coded in the plot below. update it.")
+assert_that(abs(delta.opt - .63) < 1e-4, msg = "the delta.opt is hard coded in the plot below. update it.")
 
 decay_long %>% 
   filter(grepl("pct", stat), 
          delta >= .58) %>% 
 ggplot() + 
   aes(y = value, x = delta, lty = stat) +
-  geom_line() + 
-  annotate(geom = "text", x = .87, y = 100, label = "Root mean squared\nprediction error", hjust = 0) +
-  annotate(geom = "text", x = .8, y = 60, label = "Mean absolute\nprediction error", hjust = 0) +
   geom_vline(xintercept = delta.opt, lty = 2) + 
-  annotate(geom = "text", x = delta.opt+.01, y = 100, label = expression(delta^opt==0.66), hjust = 0) + 
+  geom_line() + 
+  annotate(geom = "text", x = .87, y = 140, label = "Root mean squared\nprediction error", hjust = 0) +
+  annotate(geom = "text", x = .8, y = 75, label = "Mean absolute\nprediction error", hjust = 0) +
+  annotate(geom = "text", x = delta.opt+.01, y = 120, label = expression(delta^opt==0.63), hjust = 0) + 
   guides(lty = FALSE) + 
   labs(x = expression(paste("Decay rate, ", delta)), y = "Prediction Error as Percentage of True Value") + 
   theme_minimal() + 
@@ -198,7 +199,23 @@ decay %>% saveRDS(file = "out/decay_rate.rds")
 
 # Estimate model ----------------------------------------------------------
 
+# First estimate it on on last week's data, as in the optimization 
+# routine above, to see what country's residuals were large.
+mod.old = lmer(formula = log_cases ~ days_since_first_case + (days_since_first_case | country),
+               data = traindat, control = lmerControl(optimizer ="Nelder_Mead"),
+               weights = delta.opt^traindat$days_ago)
+testdat$preds = predict(mod.old, newdata = testdat)
+testdat$preds_lev = exp(testdat$preds)
+testdat$resid = 100*(testdat$preds_lev - testdat$cases)/testdat$cases
+testdat %>% 
+  select(country, resid, preds, log_cases, cases) %>% 
+  mutate(preds_level  =exp(preds)) %>% 
+  View()
 
+err_level = testdat$total_cases - exp(preds)
+err_log   = testdat$log_cases - preds
+
+# Now estimate it with all data
 dat$days_ago = as.numeric(today - dat$date)
 mod = lmer(formula = log_cases ~ days_since_first_case + (days_since_first_case | country), 
            data = dat, control = lmerControl(optimizer ="Nelder_Mead"),
