@@ -33,7 +33,7 @@ proj = dat %>%
   select(country, forecast_7_day, current_cases = total_cases, slope) %>% 
   mutate(doubling_time = log(2) / slope)
 
-us.current.print = prettyNum(max(proj$current_cases[proj$country=="United States"]), big.mark = ",")
+us.current.print = prettyNum(round(max(proj$current_cases[proj$country=="United States"]), -2), big.mark = ",")
 proj.us = proj$forecast_7_day[proj$country=="United States"]
 proj.us.print = prettyNum(1000*floor((proj.us)/1000), big.mark = ",")
 
@@ -50,11 +50,10 @@ sk.double.rate.print = round(sk.double.rate)
 
 
 
-![](../figs/cases_current_nocaption.png)
 
 On Wednesday, the WHO declared COVID-19, the disease caused by the novel coronavirus, to be a global pandemic. The U.S. banned travel from Europe, the NBA suspended its season, and cities across the country implemented bans on large public gathers. Will these efforts to curb the spread of the coronavirus be successful? How will we know?
 
-To answer this question, we need to know how many cases of COVID-19 we should expect given current trends. Unfortunately, I haven't seen many readily accessible forecasts that are updated in real time as new data comes in. I realize that things can escalate quickly, but I didn't have much sense of how soon to expect that to happen. So I set out to produce some short-term projections myself to help calibrate my beliefs (and maybe quell some uncertainty-induced anxiety at the same time).
+To answer this question, we need to know how many cases of COVID-19 we should expect given current trends. Unfortunately, I haven't seen many readily accessible forecasts that are updated in real time as new data comes in. I realize that things can escalate quickly, but I didn't have much sense of how soon to expect that to happen. So I set out to produce some short-term projections myself to help calibrate my expectations (and maybe quell some uncertainty-induced anxiety at the same time).
 
 <!-- Epidemiologists have [sophisticated disease transmission models](https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology) that could be used for forecasting. But the freshest research -->
 
@@ -62,13 +61,16 @@ To answer this question, we need to know how many cases of COVID-19 we should ex
 
 <!-- While I've seen news articles reference various projections, I haven't seen any models that update in real time. So I decided to produce one myself, to get a sense of what to expect over the next week or so.  -->
 
-The result is shown in the above figure. It displays the cumulative number of cases in red along with the estimated model used to make forecasts in blue. The solid blue line shows how well the model predicts past data, while the dotted blue line shows projections over the next 7 days. Note that the vertical axis is on the logarithmic scale. 
+The result is shown in the figure below. It displays the cumulative number of cases in red along with the estimated model used to make forecasts in blue. The solid blue line shows how well the model predicts past data, while the dotted blue line shows projections over the next 7 days. Note that the vertical axis is on the logarithmic scale. 
+
+
+![](../figs/cases_current_nocaption.png)
 
 Before discussing the findings, a caveat: I am not an epidemiologist, and I have no special expertise with disease modeling. I simply fit some time series models to publicly available data on the number of confirmed cases each day. If my forecast is wildly different than that of a "real" epidemiology model, it's probably because my forecast is wrong. With that out of the way...
 
-<!-- The country labels also list the estimated doubling time --- i.e., the number of days it takes for the number of cases doubles --- and the projected number of cases on `r month.name[month(fc.date)]` `r day(fc.date)` (a week from this writing). Across all countries, the average doubling time is `r round(log(2)/slope.mean, 1)` days, though it varies significantly by country. -->
+ 
 
-My forecast suggests that there will be rapid spread of COVID-19 in the next week. Currently, [Johns Hopkins CSSE](https://github.com/CSSEGISandData) reports that there are `r us.current.print` cases in the United States. If the recent trend continues, the model projects that in 7 days, there will be over `r proj.us.print` cases in the United States. The number of cases in the U.S. is poised to double roughly roughly every `r us.double.rate.print` days. For reference, there has been a nearly [10-fold increase in confirmed cases](https://www.cnbc.com/2020/03/11/us-coronavirus-cases-surpass-1000-johns-hopkins-university-data-shows.html) over the past week --- a doubling roughly every 1.4 days (compared to my model-based estimate for the next week of `r round(us.double.rate,1)`). 
+This forecast suggests that there will be rapid spread of COVID-19 in the next week. Currently, [Johns Hopkins CSSE](https://github.com/CSSEGISandData) reports that there are about `r (us.current.print)` cases in the United States.^[This number is likely to be slightly off. The Johns Hopkins data appear to be double-counting some cases: most U.S. data are at the state level, while some states report county-level data. It's not clear to me which cases are double counted though, and several attempts to reduce double-counts generated time series that didn't look very plausible. As a result, I've kept all cases in.] If the recent trend continues, the model projects that in 7 days, there will be over `r proj.us.print` cases in the United States. The number of cases in the U.S. is poised to double roughly roughly every `r us.double.rate.print` days. For reference, there has been a nearly [10-fold increase in confirmed cases](https://www.cnbc.com/2020/03/11/us-coronavirus-cases-surpass-1000-johns-hopkins-university-data-shows.html) over the past week --- a doubling roughly every 1.4 days (compared to my model-based estimate for the next week of `r round(us.double.rate,1)`). 
 
 The average doubling time worldwide is slower, at `r round(log(2)/slope.mean, 1)` days. But there are significant differences is growth rate in different countries. In other countries that are struggling to contain COVID-19 --- including Italy, Iran, Germany, and Spain --- the disease is spreading nearly as fast as in the U.S. Meanwhile, the model estimates that several countries whose outbreaks started sooner have significantly slowed the spread. In China --- the epicenter of the pandemic --- the estimated doubling time is about `r china.double.rate.print` days. In South Korea, where there has been a large-scale response, the estimate is about `r sk.double.rate.print` days. 
 
@@ -117,7 +119,7 @@ Formally, denote the predictions generated using a given $\delta$ by $\hat{y}_i(
 $$
 \begin{aligned}
   \text{RMSPE}(\delta) &= \sqrt{\frac{1}{n} \sum_{i=1}^n (\epsilon_i(\delta))^2} \\
-  \text{MAPE}(\delta) &= \sqrt{\frac{1}{n} \sum_{i=1}^n \left| \epsilon_i(\delta) \right|} \\
+  \text{MAPE}(\delta) &= {\frac{1}{n} \sum_{i=1}^n \left| \epsilon_i(\delta) \right|} \\
 \end{aligned}
 $$
 
@@ -131,7 +133,7 @@ Interestingly, the optimal decay rate is relatively small, meaning that data poi
 
 #### Model Fit
 
-As seen in the figure at the top, the model fits the recent data (in-sample) quite well. However, from the error estimation detailed in the previous section, we can see that the typical prediction is off by around 45-55%. While the estimates are likely to be in the right ballpark, they are not rock-solid predictions.
+As seen in the figure at the top, the model fits the recent data (in-sample) quite well. However, from the error estimation detailed in the previous section, we can see that the typical prediction is off by around 50-75%. While the estimates are likely to be in the right ballpark on average, they are not rock-solid predictions.
 
 This exercise uses the number of <i>confirmed cases</i>. The testing criteria are still relatively stringent, and it is likely that there are many undetected cases. This would suggest the estimates here are likely to <i>underestimate</i> the actual number of cases in the population. On the other hand, since testing has ramped up in recent weeks, it may be that the growth in confirmed cases is outpacing the growth in total cases. Since recent data is weighted more heavily, this effect would tend to overstate the growth rate --- potentially generating an <i>overestimate</i>. Without more data, it's hard to adjudicate which source of bias is likely to be more important. 
 

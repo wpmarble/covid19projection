@@ -4,6 +4,8 @@
 # I weight recent observations more heavily, with the decay rate chosen to minimize
 # 7-day-ahead forecast error. 
 
+# See write-up at williammarble.co/blog/2020-03/covid-19-projections.html
+
 setwd("~/projects/covid19/")
 options(stringsAsFactors = FALSE)
 
